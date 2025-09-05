@@ -1,4 +1,5 @@
 <img width="1024" height="1024" alt="DTFS_icon" src="https://github.com/user-attachments/assets/19226089-637d-4845-8a3a-4a756c076b13" />
+
 # Spotify Desktop Player
 
 <img width="1080" height="128" alt="image" src="https://github.com/user-attachments/assets/b8a56967-0f82-4722-bacf-4da727b098e6" />
