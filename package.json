@@ -1,6 +1,6 @@
 {
 	"name": "desktop-thing-for-spotify",
-	"version": "1.0.0",
+	"version": "1.1.0",
 	"private": true,
 	"main": "js/electron/main.js",
 	"scripts": {
@@ -60,7 +60,7 @@
 	},
 	"build": {
 		"appId": "com.spotify.desktop-thing",
-		"productName": "Spotify Desktop Thing",
+		"productName": "Desktop Thing for Spotify",
 		"directories": {
 			"output": "dist"
 		},

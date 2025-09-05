@@ -93,6 +93,16 @@ npm run build
 - `npm run dev` - Start development server with Electron
 - `npm run build` - Build for production
 
+## Changelog
+
+
+#### **Persistent Last Played State**
+### v1.1.0 - 05/09/2025
+- **Keep last track visible**: Player now shows the last played track even when music stops
+- **Active playback controls**: All buttons remain functional to restart playback from the last state
+- **Visual indicators**: Clear "(last played)" indicator when showing historical state
+- **Smart reactivation**: Click any control to resume your music session where you left off
+
 ## License
 
 MIT License - feel free to use this project as a starting point for your own Spotify integrations!

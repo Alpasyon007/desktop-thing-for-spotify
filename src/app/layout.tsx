@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-	title: "Spotify Desktop Thing",
-	description: "Spotify Desktop Player"
+	title: "Desktop Thing for Spotify",
+	description: "Desktop Player for Spotify"
 };
 
 export default function RootLayout({

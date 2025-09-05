@@ -9,6 +9,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import Image from "next/image";export function SpotifyPlayer() {
 	const [playbackState, setPlaybackState] = useState<SpotifyPlaybackState | null>(null);
+	const [lastValidPlaybackState, setLastValidPlaybackState] = useState<SpotifyPlaybackState | null>(null);
 	const [isLoading, setIsLoading] = useState(false);
 	const [isAuthenticated, setIsAuthenticated] = useState(false);
 	const [isAuthenticating, setIsAuthenticating] = useState(false);
@@ -234,7 +235,15 @@ import Image from "next/image";export function SpotifyPlayer() {
 
 		try {
 			const state = await spotifyService.getCurrentPlayback();
-			setPlaybackState(state);
+			if (state) {
+				// We have valid playback data, update both states
+				setPlaybackState(state);
+				setLastValidPlaybackState(state);
+			} else {
+				// No active playback, but keep the last valid state for display
+				setPlaybackState(null);
+				// Don't update lastValidPlaybackState - keep the last track info
+			}
 		} catch (error) {
 			console.error("Error updating playback state:", error);
 
@@ -243,6 +252,8 @@ import Image from "next/image";export function SpotifyPlayer() {
 				console.log('Token refresh failed, user needs to re-authenticate');
 				setIsAuthenticated(false);
 				setPlaybackState(null);
+				// Clear last valid state on auth failure
+				setLastValidPlaybackState(null);
 			}
 		}
 	}, [isAuthenticated]);
@@ -325,6 +336,7 @@ import Image from "next/image";export function SpotifyPlayer() {
 					console.log('Authentication lost, clearing session');
 					setIsAuthenticated(false);
 					setPlaybackState(null);
+					setLastValidPlaybackState(null);
 				}
 			}
 		};
@@ -335,8 +347,9 @@ import Image from "next/image";export function SpotifyPlayer() {
 	}, [isAuthenticated]);
 
 	const getProgressPercentage = () => {
-		if (!playbackState?.item || !playbackState.progress_ms) return 0;
-		return (playbackState.progress_ms / playbackState.item.duration_ms) * 100;
+		const currentState = playbackState || lastValidPlaybackState;
+		if (!currentState?.item || !currentState.progress_ms) return 0;
+		return (currentState.progress_ms / currentState.item.duration_ms) * 100;
 	};
 
 	const handleLogin = async () => {
@@ -411,6 +424,7 @@ import Image from "next/image";export function SpotifyPlayer() {
 		spotifyService.clearTokens();
 		setIsAuthenticated(false);
 		setPlaybackState(null);
+		setLastValidPlaybackState(null);
 	};
 
 	const handlePlayPause = async () => {
@@ -418,7 +432,21 @@ import Image from "next/image";export function SpotifyPlayer() {
 		setIsLoading(true);
 
 		try {
-			await spotifyService.togglePlayback();
+			let success = false;
+			if (!playbackState && lastValidPlaybackState?.item) {
+				// No active playback but we have a last track - restart it
+				const trackUri = `spotify:track:${lastValidPlaybackState.item.id}`;
+				success = await spotifyService.playTrack(trackUri);
+			} else {
+				// Normal toggle playback
+				success = await spotifyService.togglePlayback();
+			}
+
+			if (!success) {
+				console.error('Failed to control playback - make sure Spotify is open on a device');
+				// You could add a toast notification here if you have a notification system
+			}
+
 			// Update state immediately for better UX
 			setTimeout(updatePlaybackState, 500);
 		} catch (error) {
@@ -433,8 +461,28 @@ import Image from "next/image";export function SpotifyPlayer() {
 		setIsLoading(true);
 
 		try {
-			await spotifyService.skipToNext();
-			setTimeout(updatePlaybackState, 500);
+			let success = false;
+			if (!playbackState && lastValidPlaybackState?.item) {
+				// No active playback - start with the last track and then skip
+				const trackUri = `spotify:track:${lastValidPlaybackState.item.id}`;
+				success = await spotifyService.playTrack(trackUri);
+				if (success) {
+					// Wait a moment for playback to start, then skip
+					setTimeout(async () => {
+						await spotifyService.skipToNext();
+						setTimeout(updatePlaybackState, 300);
+					}, 1000);
+				}
+			} else {
+				success = await spotifyService.skipToNext();
+				if (success) {
+					setTimeout(updatePlaybackState, 500);
+				}
+			}
+
+			if (!success) {
+				console.error('Failed to skip to next - make sure Spotify is open on a device');
+			}
 		} catch (error) {
 			console.error("Error skipping to next:", error);
 		} finally {
@@ -447,8 +495,28 @@ import Image from "next/image";export function SpotifyPlayer() {
 		setIsLoading(true);
 
 		try {
-			await spotifyService.skipToPrevious();
-			setTimeout(updatePlaybackState, 500);
+			let success = false;
+			if (!playbackState && lastValidPlaybackState?.item) {
+				// No active playback - start with the last track and then go to previous
+				const trackUri = `spotify:track:${lastValidPlaybackState.item.id}`;
+				success = await spotifyService.playTrack(trackUri);
+				if (success) {
+					// Wait a moment for playback to start, then skip to previous
+					setTimeout(async () => {
+						await spotifyService.skipToPrevious();
+						setTimeout(updatePlaybackState, 300);
+					}, 1000);
+				}
+			} else {
+				success = await spotifyService.skipToPrevious();
+				if (success) {
+					setTimeout(updatePlaybackState, 500);
+				}
+			}
+
+			if (!success) {
+				console.error('Failed to skip to previous - make sure Spotify is open on a device');
+			}
 		} catch (error) {
 			console.error("Error skipping to previous:", error);
 		} finally {
@@ -464,16 +532,29 @@ import Image from "next/image";export function SpotifyPlayer() {
 	};
 
 	const handleProgressClick = async (e: React.MouseEvent<HTMLDivElement>) => {
-		if (!playbackState?.item) return;
+		const currentState = playbackState || lastValidPlaybackState;
+		if (!currentState?.item) return;
 
 		const rect = e.currentTarget.getBoundingClientRect();
 		const clickX = e.clientX - rect.left;
 		const percentage = clickX / rect.width;
-		const newPosition = Math.floor(percentage * playbackState.item.duration_ms);
+		const newPosition = Math.floor(percentage * currentState.item.duration_ms);
 
 		try {
-			await spotifyService.seekToPosition(newPosition);
-			setTimeout(updatePlaybackState, 200);
+			if (!playbackState && lastValidPlaybackState?.item) {
+				// No active playback - start the track first, then seek
+				const trackUri = `spotify:track:${lastValidPlaybackState.item.id}`;
+				await spotifyService.playTrack(trackUri);
+				// Wait for playback to start, then seek
+				setTimeout(async () => {
+					await spotifyService.seekToPosition(newPosition);
+					setTimeout(updatePlaybackState, 300);
+				}, 1000);
+			} else {
+				// Normal seek operation
+				await spotifyService.seekToPosition(newPosition);
+				setTimeout(updatePlaybackState, 200);
+			}
 		} catch (error) {
 			console.error("Error seeking:", error);
 		}
@@ -541,62 +622,23 @@ import Image from "next/image";export function SpotifyPlayer() {
 		);
 	}
 
-	if (!playbackState?.item) {
+	// Use current playback state if available, otherwise fall back to last valid state
+	const displayState = playbackState || lastValidPlaybackState;
+	const track = displayState?.item;
+	const albumArt = track?.album.images[0]?.url || "";
+	const progress = getProgressPercentage();
+
+	// Don't render anything if we have no track data at all
+	if (!track) {
 		return (
-			<div
-				className="flex flex-col items-center justify-center h-full p-8 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 cursor-move"
-				style={getContainerStyle(true)}
-				onMouseDown={handleMouseDown}
-				onContextMenu={handleContextMenu}
-			>
-				{/* Context Menu */}
-				{contextMenuOpen && (
-					<div
-						className="fixed z-50 bg-gray-800 border border-gray-600 rounded-md shadow-lg py-1 min-w-[120px]"
-						style={{
-							left: contextMenuPosition.x,
-							top: contextMenuPosition.y,
-						}}
-						onClick={(e) => e.stopPropagation()}
-					>
-						<button
-							className="w-full px-3 py-2 text-left text-sm text-white hover:bg-gray-700 flex items-center gap-2"
-							onClick={() => {
-								handleLogout();
-								handleCloseContextMenu();
-							}}
-						>
-							<LogOut className="h-4 w-4" />
-							Logout
-						</button>
-					</div>
-				)}
-				<div className="text-center space-y-6">
-					<div className="w-24 h-24 mx-auto mb-6 animate-pulse">
-						<svg viewBox="0 0 496 512" className="w-full h-full fill-gray-400">
-							<path d="M248 8C111.1 8 0 119.1 0 256s111.1 248 248 248 248-111.1 248-248S384.9 8 248 8zm100.7 364.9c-4.2 0-6.8-1.3-10.7-3.6-62.4-37.6-135-39.2-206.7-24.5-3.9 1-9 2.6-11.9 2.6-9.7 0-15.8-7.7-15.8-15.8 0-10.3 6.1-15.2 13.6-16.8 81.9-18.1 165.6-16.5 237 26.2 6.1 3.9 9.7 7.4 9.7 16.5s-7.1 15.4-15.2 15.4zm26.9-65.6c-5.2 0-8.7-2.3-12.3-4.2-62.5-37-155.7-51.9-238.6-29.4-4.8 1.3-7.4 2.6-11.9 2.6-10.7 0-19.4-8.7-19.4-19.4s5.2-17.8 15.5-20.7c27.8-7.8 56.2-13.6 97.8-13.6 64.9 0 127.6 16.1 177 45.5 8.1 4.8 11.3 11 11.3 19.7-.1 10.8-8.5 19.5-19.4 19.5zm31-76.2c-5.2 0-8.4-1.3-12.9-3.9-71.2-42.5-198.5-52.7-280.9-29.7-3.6 1-8.1 2.6-12.9 2.6-13.2 0-23.3-10.3-23.3-23.6 0-13.6 8.4-21.3 17.4-23.9 35.2-10.3 74.6-15.2 117.5-15.2 73 0 149.5 15.2 205.4 47.8 7.8 4.5 12.9 10.7 12.9 22.6 0 13.6-11 23.3-23.2 23.3z" />
-						</svg>
-					</div>
-					<h2 className="text-2xl font-bold text-white">No Music Playing</h2>
-					<p className="text-gray-400">Start playing music on Spotify to see controls here.</p>
-					<Button
-						onClick={handleLogout}
-						variant="outline"
-						className="border-gray-600 text-gray-400 hover:text-white hover:border-white cursor-pointer"
-						style={getDragStyle(false)}
-						onMouseDown={(e) => e.stopPropagation()}
-					>
-						<LogOut className="mr-2 h-4 w-4" />
-						Logout
-					</Button>
+			<div className="flex h-full items-center justify-center p-4">
+				<div className="text-center text-white/60">
+					<div className="text-lg font-medium">No music playing</div>
+					<div className="text-sm">Start playing music on Spotify to see it here</div>
 				</div>
 			</div>
 		);
 	}
-
-	const track = playbackState.item;
-	const albumArt = track.album.images[0]?.url || "";
-	const progress = getProgressPercentage();
 
 	return (
 		<div
@@ -628,12 +670,6 @@ import Image from "next/image";export function SpotifyPlayer() {
 					</Button>
 				</div>
 			)}
-			{/* Debug info for drag regions */}
-			{/*<div className="fixed top-0 left-0 text-xs text-white bg-black p-2 z-50">
-				Shift: {isShiftPressed ? 'ON' : 'OFF'} |
-				Container: {JSON.stringify(getContainerStyle(true))} |
-				Title: {JSON.stringify(getDragStyle(false))}
-			</div>*/}
 						{isHoveringWindow && (
 				<motion.div
 					className="flex h-full flex-col justify-center items-center"
@@ -685,7 +721,14 @@ import Image from "next/image";export function SpotifyPlayer() {
 
 							{/* Track Info */}
 							<div className="flex flex-col justify-center items-start text-center">
-								<h1 className="text-lg font-bold truncate">{track.name}</h1>
+								<h1 className="text-lg font-bold truncate flex items-center gap-2">
+									{track.name}
+									{!playbackState && (
+										<span className="text-xs text-gray-400 font-normal opacity-60">
+											(last played)
+										</span>
+									)}
+								</h1>
 								<p className="text-base text-gray-300 truncate">
 									{track.artists.map((artist) => artist.name).join(", ")}
 								</p>
@@ -702,7 +745,7 @@ import Image from "next/image";export function SpotifyPlayer() {
 								variant="ghost"
 								size="lg"
 								onClick={handlePrevious}
-								disabled={isLoading}
+								disabled={isLoading || !displayState?.item}
 								className="p-4 aspect-square rounded-full w-8 h-8"
 								onMouseDown={(e) => e.stopPropagation()}
 							>
@@ -712,11 +755,11 @@ import Image from "next/image";export function SpotifyPlayer() {
 							<Button
 								size="lg"
 								onClick={handlePlayPause}
-								disabled={isLoading}
+								disabled={isLoading || !displayState?.item}
 								className="p-4 aspect-square rounded-full w-8 h-8"
 								onMouseDown={(e) => e.stopPropagation()}
 							>
-								{playbackState.is_playing ? (
+								{playbackState?.is_playing ? (
 									<Pause size={32} fill="currentColor" />
 								) : (
 									<Play size={32} className="ml-0.5" fill="currentColor" />
@@ -727,7 +770,7 @@ import Image from "next/image";export function SpotifyPlayer() {
 								variant="ghost"
 								size="lg"
 								onClick={handleNext}
-								disabled={isLoading}
+								disabled={isLoading || !displayState?.item}
 								className="p-4 aspect-square rounded-full w-8 h-8"
 								onMouseDown={(e) => e.stopPropagation()}
 							>
@@ -743,14 +786,16 @@ import Image from "next/image";export function SpotifyPlayer() {
 					style={getDragStyle(false)}
 					onMouseDown={(e) => e.stopPropagation()}
 				>
-					<span className="text-xs">{formatTime(playbackState.progress_ms || 0)}</span>
+					<span className="text-xs">{formatTime(playbackState?.progress_ms || 0)}</span>
 					<div
-						className="w-full h-2 bg-gray-700 cursor-pointer overflow-hidden rounded-xl"
+						className={`w-full h-2 bg-gray-700 overflow-hidden rounded-xl cursor-pointer ${!playbackState ? 'opacity-70' : ''}`}
 						onClick={handleProgressClick}
 						onMouseDown={(e) => e.stopPropagation()}
 					>
 						<div
-							className="h-full bg-green-500 rounded-xl transition-all duration-1000 ease-linear"
+							className={`h-full rounded-xl transition-all duration-1000 ease-linear ${
+								playbackState ? 'bg-green-500' : 'bg-green-400'
+							}`}
 							style={{ width: `${progress}%` }}
 						/>
 					</div>
