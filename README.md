@@ -51,17 +51,6 @@ The app will open in Electron
 3. **Start playing music** - Play any song on Spotify (web, mobile, or desktop)
 4. **Control playback** - Use the controls in the app to play/pause, skip tracks, or seek
 
-## Required Spotify Permissions
-
-The app requests the following Spotify scopes:
-- `user-read-playback-state` - See what's currently playing
-- `user-modify-playback-state` - Control playback (play/pause/skip)
-- `user-read-currently-playing` - Get current track info
-- `user-library-read` - Access your saved music
-- `user-library-modify` - Save/unsave tracks
-- `playlist-read-private` - Access private playlists
-- `playlist-read-collaborative` - Access collaborative playlists
-
 ## Tech Stack
 
 - **Next.js 15** - React framework
@@ -102,21 +91,6 @@ npm run build
 
 - `npm run dev` - Start development server with Electron
 - `npm run build` - Build for production
-
-## Troubleshooting
-
-### Common Issues
-
-1. **"No access token available"** - Make sure you've completed the Spotify OAuth flow
-2. **"No Music Playing"** - Start playing music on any Spotify client first
-3. **Images not loading** - Check that Spotify image domains are allowed in next.config.ts
-4. **OAuth redirect fails** - Verify the redirect URI matches exactly in your Spotify app settings
-
-### Need Help?
-
-- Check the browser console for error messages
-- Ensure your Spotify app has the correct redirect URI
-- Make sure you have an active Spotify Premium account (required for playback control)
 
 ## License
 
