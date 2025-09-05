@@ -1,5 +1,6 @@
 # Spotify Desktop Player
 
+<img width="1080" height="128" alt="image" src="https://github.com/user-attachments/assets/b8a56967-0f82-4722-bacf-4da727b098e6" />
 A beautiful Spotify desktop player built with Next.js, Electron, and TypeScript that connects to your Spotify account to display currently playing tracks and provide playback controls.
 
 ## Features
