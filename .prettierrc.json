@@ -1,0 +1,21 @@
+{
+	"trailingComma": "none",
+	"tabWidth": 4,
+	"semi": true,
+	"singleQuote": false,
+	"useTabs": true,
+	"printWidth": 130,
+	"plugins": ["@trivago/prettier-plugin-sort-imports"],
+	"importOrder": [
+		"^[./]",
+		"react",
+		"next/(.*)$",
+		"^@/src/components/UI/(.*)$",
+		"^@/src/components/(.*)$",
+		"^@/src/(.*)$",
+		"uuid",
+		"(formik|yup)"
+	],
+	"importOrderSeparation": true,
+	"importOrderSortSpecifiers": true
+}

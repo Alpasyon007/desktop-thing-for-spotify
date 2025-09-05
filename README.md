@@ -4,13 +4,13 @@ A beautiful Spotify desktop player built with Next.js, Electron, and TypeScript 
 
 ## Features
 
-- 🎵 **Real-time playback display** - See what's currently playing on Spotify
-- 🖼️ **Album artwork** - Beautiful display of album covers
-- ⏯️ **Playback controls** - Play, pause, skip forward/backward
-- 📊 **Progress tracking** - Visual progress bar with seek functionality
-- 🔐 **Spotify OAuth integration** - Secure login with your Spotify account
-- 🖥️ **Desktop app** - Runs as a native desktop application with Electron
-- 🌙 **Modern UI** - Clean, responsive interface with dark theme
+- **Real-time playback display** - See what's currently playing on Spotify
+- **Album artwork** - Beautiful display of album covers
+- **Playback controls** - Play, pause, skip forward/backward
+- **Progress tracking** - Visual progress bar with seek functionality
+- **Spotify OAuth integration** - Secure login with your Spotify account
+- **Desktop app** - Runs as a native desktop application with Electron
+- **Modern UI** - Clean, responsive interface with dark theme
 
 ## Setup Instructions
 
@@ -19,7 +19,7 @@ A beautiful Spotify desktop player built with Next.js, Electron, and TypeScript 
 1. Go to [Spotify Developer Dashboard](https://developer.spotify.com/dashboard/applications)
 2. Create a new app
 3. Note your **Client ID** and **Client Secret**
-4. Add `http://127.0.0.1:3003/callback` to your app's redirect URIs
+4. Add `http://127.0.0.1:3004/callback` to your app's redirect URIs
 
 ### 2. Environment Configuration
 
@@ -29,7 +29,7 @@ A beautiful Spotify desktop player built with Next.js, Electron, and TypeScript 
 ```env
 NEXT_PUBLIC_SPOTIFY_CLIENT_ID=your_spotify_client_id_here
 NEXT_PUBLIC_SPOTIFY_CLIENT_SECRET=your_spotify_client_secret_here
-NEXT_PUBLIC_SPOTIFY_REDIRECT_URI=http://127.0.0.1:3003/callback
+NEXT_PUBLIC_SPOTIFY_REDIRECT_URI=http://127.0.0.1:3004/callback
 ```
 
 ### 3. Installation & Running
@@ -42,7 +42,7 @@ npm install
 npm run dev
 ```
 
-The app will open in Electron and be available at `http://127.0.0.1:3003`
+The app will open in Electron
 
 ## How to Use
 
@@ -102,8 +102,6 @@ npm run build
 
 - `npm run dev` - Start development server with Electron
 - `npm run build` - Build for production
-- `npm run lint` - Run ESLint
-- `npm run format` - Format code with Prettier
 
 ## Troubleshooting
 
