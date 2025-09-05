@@ -26,7 +26,7 @@ A beautiful Spotify desktop player built with Next.js, Electron, and TypeScript 
 
 ### 2. Environment Configuration
 
-1. Copy `.env.local.example` to `.env.local`
+1. Create `.env.local`
 2. Fill in your Spotify credentials:
 
 ```env
