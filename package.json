@@ -60,7 +60,7 @@
 	},
 	"build": {
 		"appId": "com.spotify.desktop-thing",
-		"productName": "Spotify Desktop Thing",
+		"productName": "Desktop Thing for Spotify",
 		"directories": {
 			"output": "dist"
 		},

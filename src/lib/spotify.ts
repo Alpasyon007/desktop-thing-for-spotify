@@ -422,7 +422,9 @@ class SpotifyService {
       const currentState = await this.getCurrentPlayback();
 
       if (!currentState) {
-        return false;
+        // No current playback, try to resume
+        console.log('No current playback state, attempting to resume...');
+        return await this.resumePlayback();
       }
 
       const endpoint = currentState.is_playing ? 'pause' : 'play';
@@ -431,9 +433,148 @@ class SpotifyService {
         { method: 'PUT' }
       );
 
-      return response.ok;
+      if (response.ok) {
+        return true;
+      }
+
+      // If we get 404, try device handling
+      if (response.status === 404) {
+        console.log('Device not found for toggle, trying to resume...');
+        return await this.resumePlayback();
+      }
+
+      return false;
     } catch (error) {
       console.error('Error toggling playback:', error);
+      return false;
+    }
+  }
+
+  // Get available devices
+  async getAvailableDevices(): Promise<any[]> {
+    try {
+      const response = await this.makeAuthenticatedRequest('https://api.spotify.com/v1/me/player/devices');
+
+      if (!response.ok) {
+        console.error('Failed to get devices:', response.status);
+        return [];
+      }
+
+      const data = await response.json();
+      return data.devices || [];
+    } catch (error) {
+      console.error('Error getting devices:', error);
+      return [];
+    }
+  }
+
+  // Transfer playback to a device
+  async transferPlayback(deviceId: string, play: boolean = true): Promise<boolean> {
+    try {
+      const response = await this.makeAuthenticatedRequest(
+        'https://api.spotify.com/v1/me/player',
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            device_ids: [deviceId],
+            play: play
+          })
+        }
+      );
+
+      return response.ok;
+    } catch (error) {
+      console.error('Error transferring playback:', error);
+      return false;
+    }
+  }
+
+  // Start playback on a specific track
+  async playTrack(trackUri: string): Promise<boolean> {
+    try {
+      const response = await this.makeAuthenticatedRequest(
+        'https://api.spotify.com/v1/me/player/play',
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            uris: [trackUri]
+          })
+        }
+      );
+
+      if (response.ok) {
+        return true;
+      }
+
+      // If we get 404, try to find an available device and transfer playback
+      if (response.status === 404) {
+        console.log('No active device found, trying to find available devices...');
+        const devices = await this.getAvailableDevices();
+        console.log('Available devices:', devices);
+
+        if (devices.length > 0) {
+          // Try to find an active device or use the first available one
+          const activeDevice = devices.find(d => d.is_active) || devices[0];
+          console.log('Using device:', activeDevice.name);
+
+          // Transfer playback to the device
+          const transferSuccess = await this.transferPlayback(activeDevice.id, false);
+          if (transferSuccess) {
+            // Wait a bit for transfer to complete, then try playing the track
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            return this.playTrack(trackUri); // Recursive call after device transfer
+          }
+        } else {
+          console.error('No devices available for playback');
+          return false;
+        }
+      }
+
+      return false;
+    } catch (error) {
+      console.error('Error starting playback on track:', error);
+      return false;
+    }
+  }
+
+  // Resume or start playback (without specifying track)
+  async resumePlayback(): Promise<boolean> {
+    try {
+      const response = await this.makeAuthenticatedRequest(
+        'https://api.spotify.com/v1/me/player/play',
+        { method: 'PUT' }
+      );
+
+      if (response.ok) {
+        return true;
+      }
+
+      // If we get 404, try to find an available device
+      if (response.status === 404) {
+        console.log('No active device found for resume, trying to find available devices...');
+        const devices = await this.getAvailableDevices();
+
+        if (devices.length > 0) {
+          const activeDevice = devices.find(d => d.is_active) || devices[0];
+          console.log('Using device for resume:', activeDevice.name);
+
+          // Transfer playback to the device and start playing
+          return await this.transferPlayback(activeDevice.id, true);
+        } else {
+          console.error('No devices available for playback resume');
+          return false;
+        }
+      }
+
+      return false;
+    } catch (error) {
+      console.error('Error resuming playback:', error);
       return false;
     }
   }
