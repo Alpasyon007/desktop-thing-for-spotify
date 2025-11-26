@@ -356,6 +356,13 @@ const createWindow = () => {
             },
             { type: "separator" },
             {
+                label: "Logout",
+                click: () => {
+                    win.webContents.send("logout");
+                }
+            },
+            { type: "separator" },
+            {
                 label: "Close",
                 click: () => win.close()
             }

@@ -1,7 +1,7 @@
-import { BrowserWindow, Menu, app, ipcMain, shell } from "electron";
+import { app, BrowserWindow, ipcMain, Menu, shell } from "electron";
 import serve from "electron-serve";
 import fs from "fs";
-import { Server, createServer } from "http";
+import { createServer, Server } from "http";
 import path from "path";
 
 const appServe = app.isPackaged
@@ -364,6 +364,13 @@ const createWindow = () => {
 				label: "Toggle DevTools",
 				accelerator: "F12",
 				click: () => win.webContents.toggleDevTools()
+			},
+			{ type: "separator" },
+			{
+				label: "Logout",
+				click: () => {
+					win.webContents.send("logout");
+				}
 			},
 			{ type: "separator" },
 			{
