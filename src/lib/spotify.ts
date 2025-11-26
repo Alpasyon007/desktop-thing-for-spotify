@@ -11,6 +11,13 @@ export interface SpotifyTrack {
   duration_ms: number;
 }
 
+export interface SpotifyPlaylist {
+  id: string;
+  name: string;
+  images: Array<{ url: string; height: number; width: number }>;
+  uri: string;
+}
+
 export interface SpotifyPlaybackState {
   is_playing: boolean;
   progress_ms: number;
@@ -492,6 +499,86 @@ class SpotifyService {
     }
   }
 
+  // Get user's playlists
+  async getUserPlaylists(): Promise<SpotifyPlaylist[]> {
+    try {
+      const response = await this.makeAuthenticatedRequest('https://api.spotify.com/v1/me/playlists?limit=50');
+
+      if (!response.ok) {
+        console.error('Failed to get playlists:', response.status);
+        return [];
+      }
+
+      const data = await response.json();
+      return data.items || [];
+    } catch (error) {
+      console.error('Error getting playlists:', error);
+      return [];
+    }
+  }
+
+  // Get user's queue
+  async getQueue(): Promise<SpotifyTrack[]> {
+    try {
+      const response = await this.makeAuthenticatedRequest('https://api.spotify.com/v1/me/player/queue');
+
+      if (!response.ok) {
+        console.error('Failed to get queue:', response.status);
+        return [];
+      }
+
+      const data = await response.json();
+      return data.queue || [];
+    } catch (error) {
+      console.error('Error getting queue:', error);
+      return [];
+    }
+  }
+
+  // Play a playlist
+  async playPlaylist(playlistUri: string): Promise<boolean> {
+    try {
+      const response = await this.makeAuthenticatedRequest(
+        'https://api.spotify.com/v1/me/player/play',
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            context_uri: playlistUri
+          })
+        }
+      );
+
+      if (response.ok) {
+        return true;
+      }
+
+      // If we get 404, try to find an available device and transfer playback
+      if (response.status === 404) {
+        console.log('No active device found, trying to find available devices...');
+        const devices = await this.getAvailableDevices();
+
+        if (devices.length > 0) {
+          const activeDevice = devices.find(d => d.is_active) || devices[0];
+          console.log('Using device:', activeDevice.name);
+
+          const transferSuccess = await this.transferPlayback(activeDevice.id, false);
+          if (transferSuccess) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            return this.playPlaylist(playlistUri);
+          }
+        }
+      }
+
+      return false;
+    } catch (error) {
+      console.error('Error playing playlist:', error);
+      return false;
+    }
+  }
+
   // Start playback on a specific track
   async playTrack(trackUri: string): Promise<boolean> {
     try {
@@ -629,6 +716,24 @@ class SpotifyService {
       return response.ok;
     } catch (error) {
       console.error('Error seeking to position:', error);
+      return false;
+    }
+  }
+
+  // Set volume for playback
+  async setVolume(volumePercent: number): Promise<boolean> {
+    try {
+      // Ensure volume is between 0 and 100
+      const volume = Math.max(0, Math.min(100, Math.round(volumePercent)));
+
+      const response = await this.makeAuthenticatedRequest(
+        `https://api.spotify.com/v1/me/player/volume?volume_percent=${volume}`,
+        { method: 'PUT' }
+      );
+
+      return response.ok;
+    } catch (error) {
+      console.error('Error setting volume:', error);
       return false;
     }
   }

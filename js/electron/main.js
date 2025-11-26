@@ -292,6 +292,76 @@ const createWindow = () => {
             win.webContents.toggleDevTools();
         }
     });
+    // IPC handler to show native context menu (works with drag regions!)
+    electron_1.ipcMain.handle("show-context-menu", (_event, currentView) => {
+        const isPlayerView = currentView === "player";
+        const contextMenu = electron_1.Menu.buildFromTemplate([
+            {
+                label: isPlayerView ? "Go to Playlists" : "Go to Player",
+                accelerator: "Alt+Left",
+                click: () => {
+                    if (isPlayerView) {
+                        win.webContents.send("navigate-to-playlists");
+                    }
+                    else {
+                        win.webContents.send("navigate-to-player");
+                    }
+                }
+            },
+            { type: "separator" },
+            {
+                label: "Refresh",
+                click: () => win.reload()
+            },
+            {
+                label: "Open Spotify",
+                click: () => electron_1.shell.openExternal("spotify:")
+            },
+            { type: "separator" },
+            {
+                label: "Toggle Drag Handle",
+                click: () => {
+                    win.webContents.send("toggle-drag-handle");
+                }
+            },
+            { type: "separator" },
+            {
+                label: "Minimize",
+                click: () => win.minimize()
+            },
+            {
+                label: win.isMaximized() ? "Restore" : "Maximize",
+                click: () => {
+                    if (win.isMaximized()) {
+                        win.unmaximize();
+                    }
+                    else {
+                        win.maximize();
+                    }
+                }
+            },
+            { type: "separator" },
+            {
+                label: win.isAlwaysOnTop() ? "Disable Always on Top" : "Enable Always on Top",
+                click: () => {
+                    const currentState = win.isAlwaysOnTop();
+                    win.setAlwaysOnTop(!currentState);
+                }
+            },
+            { type: "separator" },
+            {
+                label: "Toggle DevTools",
+                accelerator: "F12",
+                click: () => win.webContents.toggleDevTools()
+            },
+            { type: "separator" },
+            {
+                label: "Close",
+                click: () => win.close()
+            }
+        ]);
+        contextMenu.popup({ window: win });
+    });
     // IPC handlers for window controls
     electron_1.ipcMain.handle("window-minimize", () => {
         win.minimize();
@@ -385,10 +455,11 @@ const createWindow = () => {
         if (Math.abs(newX - lastPosition.x) > 1 || Math.abs(newY - lastPosition.y) > 1) {
             lastPosition = { x: newX, y: newY };
             // For Windows FancyZones compatibility with Shift key
-            if (process.platform === 'win32' && shiftKey) {
+            if (process.platform === "win32" && shiftKey) {
                 // When shift is held, move more deliberately to help FancyZones detect intent
                 const dragDuration = Date.now() - dragStartTime;
-                if (dragDuration > 100) { // Only start moving after 100ms to let Windows detect shift+drag
+                if (dragDuration > 100) {
+                    // Only start moving after 100ms to let Windows detect shift+drag
                     win.setPosition(newX, newY, false);
                 }
             }
@@ -407,7 +478,7 @@ const createWindow = () => {
         const deltaY = mouseY - startData.startMouseY;
         const newX = startData.windowX + deltaX;
         const newY = startData.windowY + deltaY;
-        if (process.platform === 'win32' && shiftKey) {
+        if (process.platform === "win32" && shiftKey) {
             // For FancyZones with shift key, try to be more Windows-native
             // Set final position and let Windows handle any zone snapping
             win.setPosition(newX, newY, false);
@@ -418,7 +489,7 @@ const createWindow = () => {
                 console.log(`Drag ended at: ${newX}, ${newY}, Windows positioned at: ${currentX}, ${currentY}`);
                 // If Windows significantly changed our position, respect it (zone snap occurred)
                 if (Math.abs(currentX - newX) > 20 || Math.abs(currentY - newY) > 20) {
-                    console.log('Windows zone snap detected, keeping Windows position');
+                    console.log("Windows zone snap detected, keeping Windows position");
                 }
             }, 150);
         }
@@ -466,10 +537,32 @@ const createWindow = () => {
     }
 };
 electron_1.app.on("ready", () => {
-    // Create application menu with dev tools option
+    // Create application menu with custom options
     const template = [
         {
             label: "File",
+            submenu: [
+                {
+                    label: "Refresh",
+                    accelerator: "Ctrl+R",
+                    click: (_menuItem, window) => {
+                        if (window && "reload" in window) {
+                            window.reload();
+                        }
+                    }
+                },
+                {
+                    label: "Open Spotify",
+                    click: () => {
+                        electron_1.shell.openExternal("spotify:");
+                    }
+                },
+                { type: "separator" },
+                { role: "quit", label: "Exit" }
+            ]
+        },
+        {
+            label: "View",
             submenu: [
                 {
                     label: "Toggle Dev Tools",
@@ -480,17 +573,97 @@ electron_1.app.on("ready", () => {
                         }
                     }
                 },
+                { type: "separator" },
+                { role: "resetZoom" },
+                { role: "zoomIn" },
+                { role: "zoomOut" },
+                { type: "separator" },
+                { role: "togglefullscreen" }
+            ]
+        },
+        {
+            label: "Window",
+            submenu: [{ role: "minimize" }, { role: "zoom" }, { type: "separator" }, { role: "close" }]
+        },
+        {
+            label: "Help",
+            submenu: [
                 {
-                    label: "Reload",
-                    accelerator: "Ctrl+R",
-                    click: (_menuItem, window) => {
-                        if (window && "reload" in window) {
-                            window.reload();
-                        }
+                    label: "About Desktop Thing for Spotify",
+                    click: () => {
+                        const aboutWindow = new electron_1.BrowserWindow({
+                            width: 400,
+                            height: 300,
+                            title: "About",
+                            resizable: false,
+                            minimizable: false,
+                            maximizable: false,
+                            webPreferences: {
+                                nodeIntegration: false,
+                                contextIsolation: true
+                            }
+                        });
+                        aboutWindow.loadURL(`data:text/html;charset=utf-8,
+							<!DOCTYPE html>
+							<html>
+							<head>
+								<style>
+									body {
+										font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+										background: linear-gradient(135deg, #1e3a8a 0%, #1e293b 100%);
+										color: white;
+										display: flex;
+										flex-direction: column;
+										align-items: center;
+										justify-content: center;
+										height: 100vh;
+										margin: 0;
+										padding: 20px;
+										box-sizing: border-box;
+									}
+									h1 { margin: 10px 0; font-size: 24px; }
+									p { margin: 5px 0; opacity: 0.9; }
+									.version { 
+										background: rgba(255, 255, 255, 0.1);
+										padding: 8px 16px;
+										border-radius: 20px;
+										margin: 15px 0;
+									}
+									a {
+										color: #60a5fa;
+										text-decoration: none;
+									}
+									a:hover {
+										text-decoration: underline;
+									}
+								</style>
+							</head>
+							<body>
+								<h1>🎵 Desktop Thing for Spotify</h1>
+								<div class="version">Version 1.1.1</div>
+								<p>A compact Spotify player for your desktop</p>
+								<p style="margin-top: 20px; font-size: 12px;">
+									Built with Electron & Next.js
+								</p>
+							</body>
+							</html>
+						`);
+                        aboutWindow.setMenu(null);
+                    }
+                },
+                {
+                    label: "Documentation",
+                    click: () => {
+                        electron_1.shell.openExternal("https://github.com/your-repo/desktop-thing-for-spotify");
                     }
                 },
                 { type: "separator" },
-                { role: "quit" }
+                {
+                    label: "Report Issue",
+                    click: () => {
+                        electron_1.shell.openExternal("https://github.com/your-repo/desktop-thing-for-spotify/issues");
+                    }
+                }
             ]
         }
     ];

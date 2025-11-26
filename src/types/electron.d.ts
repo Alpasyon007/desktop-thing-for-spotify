@@ -5,6 +5,7 @@ export interface ElectronAPI {
 	windowMaximize: () => Promise<void>;
 	windowClose: () => Promise<void>;
 	windowIsMaximized: () => Promise<boolean>;
+	showContextMenu: (currentView: string) => Promise<void>;
 	openExternal: (url: string) => Promise<void>;
 	setSpotifyTokens: (tokens: { accessToken: string; refreshToken: string }) => Promise<boolean>;
 	getSpotifyTokens: () => Promise<{ accessToken: string; refreshToken: string } | null>;

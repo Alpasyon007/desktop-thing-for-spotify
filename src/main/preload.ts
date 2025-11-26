@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	windowMaximize: () => ipcRenderer.invoke("window-maximize"),
 	windowClose: () => ipcRenderer.invoke("window-close"),
 	windowIsMaximized: () => ipcRenderer.invoke("window-is-maximized"),
+	showContextMenu: (currentView: string) => ipcRenderer.invoke("show-context-menu", currentView),
 	isWindows: () => process.platform === "win32",
 	isDarwin: () => process.platform === "darwin",
 	// External URL opening
@@ -30,6 +31,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	getPendingAuth: () => ipcRenderer.invoke("get-pending-auth"),
 	// Custom window dragging
 	windowDragStart: (coordinates: { x: number; y: number }) => ipcRenderer.invoke("window-drag-start", coordinates),
-	windowDragMove: (data: { mouseX: number; mouseY: number; startData: any }) => ipcRenderer.invoke("window-drag-move", data),
+	windowDragMove: (data: { mouseX: number; mouseY: number; startData: any }) => ipcRenderer.invoke("window-drag-move", data)
 	// Note: windowDragEnd is handled via the generic 'send' method above
 });
